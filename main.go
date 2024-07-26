@@ -3,18 +3,13 @@ package main
 import (
 	"bufio"
 	_ "embed"
-	"errors"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"regexp"
-	"runtime"
 	"strings"
 
-	"github.com/magiconair/properties"
 	"github.com/urfave/cli/v2"
+ 	"fiegerl.at/gitstacks/internal"
 )
 
 func main() {
@@ -39,26 +34,21 @@ func info(app *cli.App) {
 	app.Version = "1.0.0"
 }
 
-type ConfigMap struct {
-	username string
-	remote   string
-}
-
 func commands(app *cli.App) {
-	config := setupConfig()
-	remote := config.remote
-	username := config.username
+	config := internal.SetupConfig()
+	remote := config.Remote
+	username := config.Username
 
 	app.Commands = []*cli.Command{
 		{
 			Name:  "mr",
 			Usage: "open assigned merge requests",
 			Action: func(c *cli.Context) error {
-				provider := getGitProvider()
+				provider := internal.GetGitProvider()
 				if provider == "gitlab" {
-					open(remote + "/dashboard/merge_requests?assignee_username=" + username)
+					internal.Open(remote + "/dashboard/merge_requests?assignee_username=" + username)
 				} else if provider == "github" {
-					open(remote + "/pulls/" + username)
+					internal.Open(remote + "/pulls/" + username)
 				}
 				return nil
 			},
@@ -67,7 +57,7 @@ func commands(app *cli.App) {
 			Name:  "remote",
 			Usage: "opens remote repository in browser",
 			Action: func(c *cli.Context) error {
-				open(remote)
+				internal.Open(remote)
 				return nil
 			},
 			Subcommands: []*cli.Command{
@@ -75,7 +65,7 @@ func commands(app *cli.App) {
 					Name:  "mr",
 					Usage: "opens remote repository mrs",
 					Action: func(c *cli.Context) error {
-						open(remote + "/-/merge_requests")
+						internal.Open(remote + "/-/merge_requests")
 						return nil
 					},
 				},
@@ -89,7 +79,7 @@ func commands(app *cli.App) {
 					Name:  "list",
 					Usage: "list the 5 latest tags",
 					Action: func(c *cli.Context) error {
-						fmt.Println(executeCommand("git for-each-ref --sort='*authordate' --format='%(tag) | %(taggerdate:short)' refs/tags | tail -5"))
+						fmt.Println(internal.ExecuteCommand("git for-each-ref --sort='*authordate' --format='%(tag) | %(taggerdate:short)' refs/tags | tail -5"))
 						return nil
 					},
 				},
@@ -99,8 +89,8 @@ func commands(app *cli.App) {
 					Action: func(c *cli.Context) error {
 						unreleased := "" //execute(getUnreleasedCommits)
 						tag := c.Args().First()
-						executeCommand("git tag -a " + tag + " -m \"" + unreleased + "\"")
-						executeCommand("git push origin " + tag)
+						internal.ExecuteCommand("git tag -a " + tag + " -m \"" + unreleased + "\"")
+						internal.ExecuteCommand("git push origin " + tag)
 						fmt.Println("Tag created: " + tag)
 						fmt.Println("Link: " + remote + "/-/tags/" + tag)
 						return nil
@@ -110,9 +100,9 @@ func commands(app *cli.App) {
 					Name:  "diff",
 					Usage: "show the difference between two tags",
 					Action: func(c *cli.Context) error {
-						tag1 := strings.TrimSuffix(execute("git describe --tags $(git rev-list --tags --max-count=1)"), "\n")
+						tag1 := strings.TrimSuffix(internal.Execute("git describe --tags $(git rev-list --tags --max-count=1)"), "\n")
 						tag2 := "main"
-						fmt.Println(executeCommand("git log " + tag1 + ".." + tag2 + " --no-merges --pretty=format:\"%h - %an, %ad : %s\" --date=short"))
+						fmt.Println(internal.ExecuteCommand("git log " + tag1 + ".." + tag2 + " --no-merges --pretty=format:\"%h - %an, %ad : %s\" --date=short"))
 						return nil
 					},
 				},
@@ -127,7 +117,7 @@ func commands(app *cli.App) {
 					Name:  "switch",
 					Usage: "switch to a branch",
 					Action: func(c *cli.Context) error {
-						fmt.Println(executeCommand("git add --all && git stash && git checkout -b " + c.Args().First() + " && git stash pop"))
+						fmt.Println(internal.ExecuteCommand("git add --all && git stash && git checkout -b " + c.Args().First() + " && git stash pop"))
 						return nil
 					},
 				},
@@ -141,7 +131,7 @@ func commands(app *cli.App) {
 						},
 					},
 					Action: func(c *cli.Context) error {
-						branch := executeCommand("git rev-parse --abbrev-ref HEAD")
+						branch := internal.ExecuteCommand("git rev-parse --abbrev-ref HEAD")
 						if !c.Bool("delete") {
 							fmt.Println(branch)
 							return nil
@@ -154,9 +144,9 @@ func commands(app *cli.App) {
 						input := bufio.NewScanner(os.Stdin)
 						input.Scan()
 						if input.Text() == "y" {
-							executeCommand("git reset --hard")
-							executeCommand("git checkout main")
-							executeCommand("git branch -D " + branch)
+							internal.ExecuteCommand("git reset --hard")
+							internal.ExecuteCommand("git checkout main")
+							internal.ExecuteCommand("git branch -D " + branch)
 							fmt.Println("[GitStacks] Deleted branch: " + branch)
 						}
 						return nil
@@ -166,7 +156,7 @@ func commands(app *cli.App) {
 					Name:  "save",
 					Usage: "saves the current changes",
 					Action: func(c *cli.Context) error {
-						fmt.Println(executeCommand("git add --all && git commit -a -m \"work in progress\""))
+						fmt.Println(internal.ExecuteCommand("git add --all && git commit -a -m \"work in progress\""))
 						return nil
 					},
 				},
@@ -195,7 +185,7 @@ func commands(app *cli.App) {
 				if push {
 					pushCommand = " && git push"
 				}
-				fmt.Println(executeCommand("git add --all && git commit -a -m \"" + message + "\"" + pushCommand))
+				fmt.Println(internal.ExecuteCommand("git add --all && git commit -a -m \"" + message + "\"" + pushCommand))
 				return nil
 			},
 		},
@@ -211,100 +201,9 @@ func commands(app *cli.App) {
 			},
 			Action: func(c *cli.Context) error {
 				branch := c.String("branch")
-				fmt.Println(executeCommand("git add --all && git stash && git checkout " + branch + " && git pull && git checkout -b " + c.Args().First() + " && git stash pop"))
+				fmt.Println(internal.ExecuteCommand("git add --all && git stash && git checkout " + branch + " && git pull && git checkout -b " + c.Args().First() + " && git stash pop"))
 				return nil
 			},
 		},
 	}
-}
-
-func execute(script string) string {
-	command := exec.Command("bash")
-	command.Stdin = strings.NewReader(script)
-	out, err := command.Output()
-	if err != nil {
-		fmt.Printf("%s", err)
-	}
-	output := string(out[:])
-	return strings.Replace(output, `\n`, "\n", -1)
-}
-
-func executeCommand(args string) string {
-	output, err := exec.Command("bash", "-c", args).Output()
-	if err != nil {
-		fmt.Printf("Unable to execute command {%s}. Error: %s\n", args, err)
-	}
-	return string(output)
-}
-
-func open(url string) error {
-	var cmd string
-	var args []string
-
-	switch runtime.GOOS {
-	case "windows":
-		cmd = "cmd"
-		args = []string{"/c", "start"}
-	case "darwin":
-		cmd = "open"
-	default: // "linux", "freebsd", "openbsd", "netbsd"
-		cmd = "xdg-open"
-	}
-	args = append(args, url)
-	return exec.Command(cmd, args...).Start()
-}
-
-func TrimString(s string) string {
-	return strings.ReplaceAll(s, "\n", "")
-}
-
-func setupConfig() *ConfigMap {
-	configPath := getConfigPath()
-	// Check if the config file exists
-	if !doesFileExist(configPath) {
-		// Create the config file
-		createFile(configPath)
-	}
-	p := properties.MustLoadFile(getConfigPath(), properties.UTF8)
-	return &ConfigMap{
-		remote:   getRemote(),
-		username: p.MustGetString("username"),
-	}
-}
-func getConfigPath() string {
-	ex, err := os.Executable()
-	if err != nil {
-		panic(err)
-	}
-	exPath := filepath.Dir(ex)
-	return exPath + "/.gitstacks.properties"
-}
-func doesFileExist(path string) bool {
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		return false
-	}
-	return true
-}
-func createFile(path string) {
-	f, err := os.Create(path)
-	defer f.Close()
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-func getRemote() string {
-	remote := executeCommand("git config --get remote.origin.url")
-	re := regexp.MustCompile(`git@github\.com:(.+)/(.+)\.git`)
-	// Replace the SSH URL with the HTTPS URL using captured groups
-	httpsURL := re.ReplaceAllString(remote, `https://github.com/$1/$2.git`)
-	withoutGit := strings.Replace(httpsURL, ".git", "", 1)
-	return TrimString(withoutGit)
-}
-
-func getGitProvider() string {
-	if strings.Contains(getRemote(), "github") {
-		return "github"
-	}
-	return "gitlab"
 }
