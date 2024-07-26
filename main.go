@@ -1,15 +1,14 @@
 package main
 
 import (
-	"bufio"
 	_ "embed"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 
+	"fiegerl.at/gitstacks/internal"
 	"github.com/urfave/cli/v2"
- 	"fiegerl.at/gitstacks/internal"
 )
 
 func main() {
@@ -109,52 +108,6 @@ func commands(app *cli.App) {
 			},
 		},
 		{
-			Name:    "git",
-			Aliases: []string{"g"},
-			Usage:   "all git commands",
-			Subcommands: []*cli.Command{
-				{
-					Name:  "switch",
-					Usage: "switch to a branch",
-					Action: func(c *cli.Context) error {
-						fmt.Println(internal.ExecuteCommand("git add --all && git stash && git checkout -b " + c.Args().First() + " && git stash pop"))
-						return nil
-					},
-				},
-				{
-					Name:  "branch",
-					Usage: "get current branch",
-					Flags: []cli.Flag{
-						&cli.BoolFlag{
-							Name:  "delete, d",
-							Usage: "Delte the current branch",
-						},
-					},
-					Action: func(c *cli.Context) error {
-						branch := internal.ExecuteCommand("git rev-parse --abbrev-ref HEAD")
-						if !c.Bool("delete") {
-							fmt.Println(branch)
-							return nil
-						}
-						if branch == "main" {
-							// fmt.Println("[GitStacks] Cannot delete main branch")
-							return cli.NewExitError("[GitStacks] Cannot delete main branch", 86)
-						}
-						fmt.Print("[GitStacks] Discard local changes (y|n): ")
-						input := bufio.NewScanner(os.Stdin)
-						input.Scan()
-						if input.Text() == "y" {
-							internal.ExecuteCommand("git reset --hard")
-							internal.ExecuteCommand("git checkout main")
-							internal.ExecuteCommand("git branch -D " + branch)
-							fmt.Println("[GitStacks] Deleted branch: " + branch)
-						}
-						return nil
-					},
-				},
-			},
-		},
-		{
 			Name:    "save",
 			Usage:   "saves the current changes",
 			Aliases: []string{"s"},
@@ -178,6 +131,7 @@ func commands(app *cli.App) {
 					pushCommand = " && git push"
 				}
 				fmt.Println(internal.ExecuteCommand("git add --all && git commit -a -m \"" + message + "\"" + pushCommand))
+				fmt.Println("[GitStacks] Saved changes")
 				return nil
 			},
 		},
@@ -193,7 +147,14 @@ func commands(app *cli.App) {
 			},
 			Action: func(c *cli.Context) error {
 				branch := c.String("branch")
-				fmt.Println(internal.ExecuteCommand("git add --all && git stash && git checkout " + branch + " && git pull && git checkout -b " + c.Args().First() + " && git stash pop"))
+				baseCommand := "git add --all && git stash && git checkout " + branch + " && git pull && git checkout -b " + c.Args().First()
+				changedFiles := internal.TrimWhitespaceAndNewline(internal.ExecuteCommand("git diff --name-only | wc -l"))
+				if changedFiles == "0" {
+					fmt.Println("[GitStacks] No changes to save")
+				} else {
+					baseCommand += " && git stash pop"
+				}
+				fmt.Println(internal.ExecuteCommand(baseCommand))
 				return nil
 			},
 		},

@@ -58,6 +58,9 @@ func Open(url string) error {
 func TrimString(s string) string {
 	return strings.ReplaceAll(s, "\n", "")
 }
+func TrimWhitespaceAndNewline(s string) string {
+	return strings.TrimSpace(strings.ReplaceAll(s, "\n", ""))
+}
 
 func SetupConfig() *ConfigMap {
 	configPath := getConfigPath()
