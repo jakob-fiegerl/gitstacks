@@ -149,9 +149,7 @@ func commands(app *cli.App) {
 				branch := c.String("branch")
 				baseCommand := "git checkout " + branch + " && git pull && git checkout -b " + c.Args().First()
 				changedFiles := internal.TrimWhitespaceAndNewline(internal.ExecuteCommand("git diff --name-only | wc -l"))
-				if changedFiles == "0" {
-					fmt.Println("[GitStacks] No changes to save")
-				} else {
+				if changedFiles != "0" {
 					baseCommand = "git add --all && git stash && " + baseCommand + " && git stash pop"
 				}
 				fmt.Println(internal.ExecuteCommand(baseCommand))
