@@ -152,14 +152,6 @@ func commands(app *cli.App) {
 						return nil
 					},
 				},
-				{
-					Name:  "save",
-					Usage: "saves the current changes",
-					Action: func(c *cli.Context) error {
-						fmt.Println(internal.ExecuteCommand("git add --all && git commit -a -m \"work in progress\""))
-						return nil
-					},
-				},
 			},
 		},
 		{
