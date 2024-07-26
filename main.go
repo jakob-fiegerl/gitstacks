@@ -154,6 +154,7 @@ func commands(app *cli.App) {
 				} else {
 					baseCommand += " && git stash pop"
 				}
+				fmt.Println(baseCommand)
 				fmt.Println(internal.ExecuteCommand(baseCommand))
 				return nil
 			},
