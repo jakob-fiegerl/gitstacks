@@ -147,12 +147,12 @@ func commands(app *cli.App) {
 			},
 			Action: func(c *cli.Context) error {
 				branch := c.String("branch")
-				baseCommand := "git add --all && git stash && git checkout " + branch + " && git pull && git checkout -b " + c.Args().First()
+				baseCommand := "git checkout " + branch + " && git pull && git checkout -b " + c.Args().First()
 				changedFiles := internal.TrimWhitespaceAndNewline(internal.ExecuteCommand("git diff --name-only | wc -l"))
 				if changedFiles == "0" {
 					fmt.Println("[GitStacks] No changes to save")
 				} else {
-					baseCommand += " && git stash pop"
+					baseCommand = "git add --all && git stash && " + baseCommand + " && git stash pop"
 				}
 				fmt.Println(baseCommand)
 				fmt.Println(internal.ExecuteCommand(baseCommand))
