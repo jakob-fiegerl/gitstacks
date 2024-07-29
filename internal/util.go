@@ -1,7 +1,6 @@
 package internal
 
 import (
-	_ "embed"
 	"errors"
 	"fmt"
 	"os"
