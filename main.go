@@ -71,6 +71,30 @@ func commands(app *cli.App) {
 			},
 		},
 		{
+			Name: "branch",
+			Aliases: []string{"b"},
+			Subcommands: []*cli.Command{
+				{
+					Name:  "recent",
+					Aliases: []string{"r"},
+					Usage: "list all recent branches",
+					Action: func(c *cli.Context) error {
+						fmt.Println(internal.ExecuteCommand("git for-each-ref --sort=-committerdate refs/heads --format='%(HEAD)%(color:green)%(refname:short)|%(color:bold brightblack)%(committerdate:relative)|%(color:white)%(subject)|%(color:blue)%(authorname)%(color:reset)' --color=always --count=${count:=10} | column -ts'|'"))
+						return nil
+					},
+				},
+				{
+					Name:  "jump",
+					Aliases: []string{"j"},
+					Usage: "jump to a branch",
+					Action: func(c *cli.Context) error {
+						fmt.Println(internal.ExecuteCommand("git add --all && git stash && git checkout " + c.Args().First()))
+						return nil
+					},
+				},
+			},
+		},
+		{
 			Name:  "tags",
 			Usage: "list the 5 latest tags",
 			Subcommands: []*cli.Command{
